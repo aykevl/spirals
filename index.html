@@ -89,14 +89,27 @@ body {
   width: 100%;
 }
 
-#circles circle {
-  fill: var(--bs-body-color);
-}
-
 form {
   max-width: 24em;
 }
 
+/* Styles for the SVG */
+#circles circle {
+  fill: var(--bs-body-color);
+}
+#circles circle:hover {
+  stroke: red;
+  stroke-width: 1px;
+}
+#circles circle.focus {
+  stroke: red;
+  stroke-width: 2px;
+}
+#hover-text {
+  fill: var(--bs-body-color);
+}
+
+/* Use a different layout on desktops */
 @media (min-width: 1000px) {
   body {
     display: grid;
@@ -140,8 +153,8 @@ form {
           <input type="number" class="form-control" id="inputStop" value="256">
         </div>
         <div>
-          <label for="inputR" class="form-label">Radius constant</label>
-          <input type="number" class="form-control" id="inputR" value="12" min="0">
+          <label for="inputRadius" class="form-label">Radius</label>
+          <input type="number" class="form-control" id="inputRadius" value="10" min="0">
         </div>
         <div>
           <label for="inputSpiral" class="form-label">Spiral</label>
@@ -153,6 +166,7 @@ form {
       </form>
     </div>
     <svg id="circles">
+      <text x="16" y="24" id="hover-text" style="font-size: 20px"></text>
       <g id="circles-center" style="transform: translate(50%, 50%)"></g>
     </svg>
     <div id="table">
@@ -181,7 +195,7 @@ function update() {
   let stop = parseInt(inputStop.value);
   inputStart.setAttribute('max', stop);
   inputStop.setAttribute('min', start);
-  let radiusConstant = parseFloat(document.querySelector('#inputR').value);
+  let radius = parseFloat(document.querySelector('#inputRadius').value);
   let direction = document.querySelector('#inputSpiral').value == 'clockwise' ? 1 : -1;
 
   // Clear the previous SVG.
@@ -192,18 +206,22 @@ function update() {
   let tbody = document.querySelector('#results tbody');
   tbody.innerHTML = '';
 
+  let focusText = document.querySelector('#hover-text');
+
   // Calculate each point in the spiral.
   for (let i=start; i<=stop; i++) {
     // Calculate this point.
     const goldenAngle = 180 * (3 - Math.sqrt(5));
-    let r = radiusConstant * Math.sqrt(i);
+    let r = Math.sqrt(i);
     let angle = (i * goldenAngle * direction) % 360;
     let x = r * Math.cos(angle / 180 * Math.PI);
-    let y = r * Math.sin(angle / 180 * Math.PI);
+    let y = -r * Math.sin(angle / 180 * Math.PI);
 
     // Add to the table.
     let tr = document.createElement('tr');
-    for (let num of [i, angle.toFixed(2), x.toFixed(3), y.toFixed(3)]) {
+    let xf = (x / Math.sqrt(stop) * radius).toFixed(3);
+    let yf = -(y / Math.sqrt(stop) * radius).toFixed(3);
+    for (let num of [i, angle.toFixed(2), xf, yf]) {
       let td = document.createElement('td');
       td.textContent = num;
       tr.appendChild(td);
@@ -211,15 +229,34 @@ function update() {
     tbody.appendChild(tr);
 
     // Add to the SVG.
+    let titleText = `#${i} x=${xf} y=${yf} θ=${angle.toFixed(1)}`;
     let circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', x);
-    circle.setAttribute('cy', y);
-    circle.setAttribute('r', 4);
-    circle.setAttribute('title', i);
+    circle.setAttribute('cx', 12 * x);
+    circle.setAttribute('cy', 12 * y);
+    circle.setAttribute('r', 8);
     let title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = i;
+    title.textContent = titleText;
     circle.appendChild(title);
     group.appendChild(circle);
+
+    // Make the circle clickable.
+    let focus = function() {
+      let previouslyFocused = group.querySelector('.focus');
+      if (circle == previouslyFocused) {
+        // Nothing to do here.
+        return;
+      }
+
+      // Remove previously focused element.
+      if (previouslyFocused) {
+        previouslyFocused.classList.remove('focus');
+      }
+
+      // Focus new element.
+      circle.classList.add('focus');
+      focusText.textContent = titleText;
+    };
+    circle.addEventListener('click', focus);
   }
 }
 
